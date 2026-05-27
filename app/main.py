@@ -1,6 +1,7 @@
 from app.scraper.fedan_scraper import fetch_fedan_page
 from app.scraper.parser import parse_fedan_data
 from app.storage.rate_store import has_changed, save_today_rates
+from app.notifier.email_sender import send_alert
 
 
 def main():
@@ -19,10 +20,12 @@ def main():
     }
 
     if has_changed(new_rates):
-        print("Rates changed → saving today’s data")
+        print("Rates changed → updating storage")
         save_today_rates(new_rates)
 
-        print("ALERT: FX rate updated (ready for Viber)")
+        print("Sending EMAIL alerts")
+        send_alert(new_rates)
+
     else:
         print("No change in rates")
 
