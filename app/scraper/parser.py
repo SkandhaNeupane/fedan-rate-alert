@@ -1,18 +1,31 @@
-'''
 from bs4 import BeautifulSoup
 
-def parse_usd_rate(html):
+def parse_fedan_data(html):
     if not html:
-        return None
+        return {
+            "status": "error",
+            "message": "No HTML received"
+        }
 
     soup = BeautifulSoup(html, "html.parser")
 
-    # Find all tables
-    tables = soup.find_all("table")
+    # -------------------------
+    # 1. Extract timestamps
+    # -------------------------
+    t1 = soup.find(id="ContentPlaceHolder1_lbl1opm")
+    t2 = soup.find(id="ContentPlaceHolder1_lbl2pm")
 
-    usd_rate = None
+    time_10am = t1.get_text(strip=True) if t1 else None
+    time_2pm = t2.get_text(strip=True) if t2 else None
 
-    for table in tables:
+    # -------------------------
+    # 2. Extract USD rates
+    # -------------------------
+    tables = soup.select("table.table.table-compact")
+
+    rates = {}
+
+    for i, table in enumerate(tables):
         rows = table.find_all("tr")
 
         for row in rows:
@@ -21,50 +34,33 @@ def parse_usd_rate(html):
             if len(cols) >= 3:
                 text = cols[0].get_text(strip=True)
 
-                # Look for USD row
-                if "USD" in text:
+                if "USD" in text.upper():
                     try:
-                        usd_rate = float(cols[2].get_text(strip=True))
-                    except:
-                        usd_rate = None
+                        rate = float(
+                            cols[2].get_text(strip=True).replace(",", "")
+                        )
 
-    return usd_rate'''
+                        # Table mapping:
+                        # 0 = 10 AM block
+                        # 1 = 2 PM block
+                        if i == 0:
+                            rates["10AM"] = rate
+                        elif i == 1:
+                            rates["2PM"] = rate
 
+                    except Exception:
+                        continue
 
+    if not rates:
+        return {
+            "status": "no_data",
+            "message": "No USD rate found"
+        }
 
-from bs4 import BeautifulSoup
-
-def parse_usd_rate(html):
-    if not html:
-        return {"status": "error", "message": "No HTML received"}
-
-    soup = BeautifulSoup(html, "html.parser")
-
-    tables = soup.find_all("table")
-
-    for table in tables:
-        rows = table.find_all("tr")
-
-        for row in rows:
-            cols = row.find_all("td")
-
-            if len(cols) >= 3:
-                text = cols[0].get_text(strip=True)
-
-                if "USD" in text:
-                    try:
-                        rate = float(cols[2].get_text(strip=True))
-
-                        return {
-                            "status": "success",
-                            "currency": "USD",
-                            "buy_rate": rate
-                        }
-                    except:
-                        pass
-
-    # 👇 IMPORTANT: graceful fallback
     return {
-        "status": "no_data",
-        "message": "No USD rate found (market closed or holiday)"
+        "status": "success",
+        "10AM": rates.get("10AM"),
+        "2PM": rates.get("2PM"),
+        "time_10am": time_10am,
+        "time_2pm": time_2pm
     }

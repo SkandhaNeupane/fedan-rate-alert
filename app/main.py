@@ -1,33 +1,31 @@
-'''
 from app.scraper.fedan_scraper import fetch_fedan_page
-from app.scraper.parser import parse_usd_rate
+from app.scraper.parser import parse_fedan_data
+from app.storage.rate_store import has_changed, save_today_rates
 
 
 def main():
     html = fetch_fedan_page()
-    usd = parse_usd_rate(html)
+    data = parse_fedan_data(html)
 
-    if usd:
-        print({
-            "currency": "USD",
-            "buy_rate": usd
-        })
+    print("Fetched:", data)
+
+    if data.get("status") != "success":
+        print("No valid data today.")
+        return
+
+    new_rates = {
+        "10AM": data.get("10AM"),
+        "2PM": data.get("2PM")
+    }
+
+    if has_changed(new_rates):
+        print("Rates changed → saving today’s data")
+        save_today_rates(new_rates)
+
+        print("ALERT: FX rate updated (ready for Viber)")
     else:
-        print("Failed to extract USD rate")
+        print("No change in rates")
 
-
-if __name__ == "__main__":
-    main()'''  
-
-
-from app.scraper.fedan_scraper import fetch_fedan_page
-from app.scraper.parser import parse_usd_rate
-
-def main():
-    html = fetch_fedan_page()
-    result = parse_usd_rate(html)
-
-    print(result)
 
 if __name__ == "__main__":
     main()
